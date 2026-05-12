@@ -1,5 +1,6 @@
 data/*.csv
 models/*.joblib
+models/tweetsense_twitter_roberta/
 .ipynb_checkpoints/
 __pycache__/
 *.pyc
