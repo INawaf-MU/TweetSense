@@ -1,0 +1,141 @@
+import os
+import zlib
+import base64
+import webbrowser
+from urllib.request import pathname2url
+
+from google import genai
+from google.genai import types
+
+
+API_KEY = os.getenv("GEMINI_API_KEY")
+
+SYS_PROMPT = """You are a highly precise Software Architecture Engine.
+Your ONLY purpose is to translate unstructured text into flawless PlantUML syntax.
+
+STEP 1: DIMENSIONAL ANALYSIS
+Determine the necessary UML diagram type from the user's text.
+
+STEP 2: STRICT EXECUTION
+Return the raw PlantUML code.
+- DO NOT wrap the code in markdown formatting.
+- Start directly with @startuml and end with @enduml.
+
+CORPORATE STYLING CONSTRAINT:
+You MUST insert the following block of code immediately after @startuml in EVERY output to enforce a modern, flat, corporate visual standard:
+
+hide circle
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontName "Segoe UI"
+skinparam ArrowColor #1E293B
+skinparam ArrowThickness 1.5
+skinparam Class {
+    BackgroundColor #FFFFFF
+    BorderColor #1E293B
+    HeaderBackgroundColor #F1F5F9
+    FontColor #0F172A
+    FontSize 14
+}
+skinparam Sequence {
+    ParticipantBackgroundColor #F1F5F9
+    ParticipantBorderColor #1E293B
+    LifeLineBorderColor #64748B
+}
+
+ARCHITECTURAL CONSTRAINTS:
+1. Class: You MUST strictly categorize fields and methods.
+2. Sequence: MUST use autonumber, activate, and deactivate.
+3. Keep the syntax strictly standard. Do not hallucinate."""
+
+
+def generate_plantuml_code(user_input: str) -> str:
+    if not API_KEY:
+        raise ValueError("Set the GEMINI_API_KEY environment variable first.")
+
+    client = genai.Client(api_key=API_KEY)
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=user_input,
+        config=types.GenerateContentConfig(
+            system_instruction=SYS_PROMPT,
+            temperature=0.0
+        )
+    )
+
+    uml_code = clean_model_response(response.text)
+    if not uml_code:
+        raise ValueError("The model returned an empty response.")
+
+    return uml_code
+
+
+def clean_model_response(text: str) -> str:
+    return text.replace("```plantuml", "").replace("```", "").strip()
+
+
+def create_diagram_url(puml_code: str) -> str:
+    compressed = zlib.compress(puml_code.encode('utf-8'), 9)
+    encoded = base64.urlsafe_b64encode(compressed).decode('utf-8')
+    return f"https://kroki.io/plantuml/svg/{encoded}"
+
+
+def export_to_html(image_url: str, output_file: str = "UML.html") -> str:
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Architecture Blueprint</title>
+    <style>
+        body {{
+            margin: 0; padding: 40px;
+            background: #eef2f6;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh;
+        }}
+        .canvas {{
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            display: inline-block;
+        }}
+        img {{ max-width: 100%; height: auto; display: block; }}
+    </style>
+</head>
+<body>
+    <div class="canvas">
+        <img src="{image_url}" alt="UML Diagram">
+    </div>
+</body>
+</html>"""
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    return os.path.abspath(output_file)
+
+
+def main() -> None:
+    user_text = input("Enter a text:\n> ").strip()
+    if not user_text:
+        return
+
+    print("Working...")
+
+    try:
+        uml_code = generate_plantuml_code(user_text)
+        diagram_url = create_diagram_url(uml_code)
+        output_path = export_to_html(diagram_url)
+    except Exception as error:
+        print(f"Error: {error}")
+        return
+
+    print("Done.")
+    webbrowser.open(f"file://{pathname2url(output_path)}")
+
+
+if __name__ == "__main__":
+    main()

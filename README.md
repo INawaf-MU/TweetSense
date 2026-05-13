@@ -3,7 +3,7 @@
 TweetSense compares two sentiment-classification methods for noisy Twitter text:
 
 1. Traditional ML: preprocessing, TF-IDF, and classic classifiers.
-2. Local Hugging Face classification: a zero-shot transformer model.
+2. Hugging Face classification: fine-tuned Twitter RoBERTa.
 
 ## Setup
 
@@ -18,7 +18,7 @@ The notebook is configured to read the dataset from:
 
 Dataset: https://www.kaggle.com/datasets/jp797498e/twitter-entity-sentiment-analysis
 
-The Hugging Face section uses a zero-shot model. The first run may download the model; after that it runs locally from the Hugging Face cache.
+The Hugging Face section fine-tunes `cardiffnlp/twitter-roberta-base`. The first run may download the model; after that it runs locally from the Hugging Face cache.
 
 ## Main Notebook
 
